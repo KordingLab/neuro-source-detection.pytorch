@@ -11,7 +11,7 @@ Pytorch code for training and testing source detection models for neuron-tree re
 
 
 ## Requirements
-The code is developed using python 3.7.1 on Ubuntu 16.04. NVIDIA GPUs ared needed to train and test. 
+The code is developed using python 3.7.2 on Ubuntu 18.04.1. NVIDIA GPUs ared needed to train and test. 
 See [`requirements.txt`](requirements.txt) for other dependencies.
 
 ## Quick start

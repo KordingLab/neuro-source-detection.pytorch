@@ -30,11 +30,11 @@ To train with simulated data, run:
 ```
 CUDA_VISIBLE_DEVICES=$GPU_ID python source_detection/train.py --cfg experiments/simulated/128x128_d256x3_adam_lr1e-3.yaml
 ```
-Model checkpoints and logs will be saved into outpu folder while tensorboard logs will be saved into log folder.
+Model checkpoints and logs will be saved into `output` folder while tensorboard logs will be saved into `log` folder.
 
 ### Testing with simulated data
 To test with simulated data after training, run:
 ```
 CUDA_VISIBLE_DEVICES=$GPU_ID python source_detection/validate.py --cfg experiments/simulated/128x128_d256x3_adam_lr1e-3.yaml
 ```
-Tensorboard logs will be saved into log folder.
+Tensorboard logs will be saved into `log` folder.

@@ -17,8 +17,8 @@ import torch
 import torch.autograd as autograd
 
 from lib.core.config import get_model_name
-# from lib.core.evaluate import accuracy
-# from core.inference import get_final_preds, get_final_integral_preds
+from lib.core.evaluate import calc_tp_fp_fn
+from lib.core.inference import get_final_preds
 # from utils.transforms import flip_back
 # from utils.vis import save_debug_images
 # from utils.vis_plain_keypoint import vis_mpii_keypoints
@@ -113,6 +113,9 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
     # switch to evaluate mode
     model.eval()
 
+    all_preds = []
+    all_gts = []
+
     with torch.no_grad():
         end = time.time()
         for i, (input, target, meta) in enumerate(val_loader):
@@ -127,6 +130,13 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
             losses.update(loss.item(), num_images)
             # _, avg_acc, cnt, pred = accuracy(output.cpu().numpy(),
             #                                  target.cpu().numpy())
+            preds = get_final_preds(output.detach().cpu().numpy())
+            all_preds.extend(preds)
+
+            sources = meta['sources'].clone().detach().cpu().numpy()
+            valid_source_nums = meta['valid_source_num'].clone().detach().cpu().numpy()
+            for j, gt in enumerate(sources):
+                all_gts.append(gt[:valid_source_nums[j], :])
 
             # acc.update(avg_acc, cnt)
 
@@ -168,12 +178,26 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
 
                 # prefix = '{}_{}'.format(os.path.join(output_dir, 'val'), i)
 
-        perf_indicator = losses.avg
+        # perf_indicator = losses.avg
+        total_tp = total_fp = total_fn = 0
+        for preds, target in zip(all_preds, all_gts):
+            tp, fp, fn = calc_tp_fp_fn(preds, target)
+            total_tp += tp
+            total_fp += fp
+            total_fn += fn
+
+        recall = total_tp / (total_tp + total_fn)
+        prec = total_tp / (total_tp + total_fp)
+
+        perf_indicator = 2 * prec * recall / (prec + recall)
 
         if writer_dict:
             writer = writer_dict['writer']
             global_steps = writer_dict['valid_global_steps']
             writer.add_scalar('valid_loss', losses.avg, global_steps)
+            writer.add_scalar('recall', recall, global_steps)
+            writer.add_scalar('precision', prec, global_steps)
+            writer.add_scalar('f_score', perf_indicator, global_steps)
 
             writer_dict['valid_global_steps'] = global_steps + 1
 

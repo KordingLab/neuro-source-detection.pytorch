@@ -120,7 +120,7 @@ def evalpotential(sites_locations, sources):
     #     recordings[i] = sum(sources[0,:]/dis_sources);
     return recordings
 
-def get_source(x_mesh, y_mesh, depth, n_sources, var_noise):
+def get_mesh(x_mesh, y_mesh):
 
     d = x_mesh*y_mesh
     x = np.linspace(0, 1, x_mesh)
@@ -129,12 +129,16 @@ def get_source(x_mesh, y_mesh, depth, n_sources, var_noise):
     Xsim = np.reshape(Xsim, [d])
     Ysim = np.reshape(Ysim, [d])
     mesh = np.array([Xsim,Ysim,np.zeros(d)]);
+    return mesh
+
+def get_source(depth, n_sources, var_noise):
+
     sources = np.random.rand(4, n_sources);
     sources[3, :] = depth
     sources[0, :] = 2*np.floor(2*sources[0, :])-1;
     # image = evalpotential(mesh, sources);
     # image = image.reshape((y_mesh, x_mesh)) + var_noise*np.random.randn(y_mesh, x_mesh)
-    return mesh, sources
+    return sources
 
 def generate_heatmaps(keypoints, im_height, im_width):
     heatmaps = np.zeros((1, int(im_height), int(im_width)), dtype=np.float32)

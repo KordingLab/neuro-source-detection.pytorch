@@ -163,7 +163,7 @@ def main():
         pin_memory=True
     )
 
-    best_perf = 1000.0
+    best_perf = 0.0
     best_model = False
     for epoch in range(config.TRAIN.BEGIN_EPOCH, config.TRAIN.END_EPOCH):
         lr_scheduler.step()
@@ -178,7 +178,7 @@ def main():
                                   criterion, final_output_dir, tb_log_dir,
                                   writer_dict)
 
-        if perf_indicator < best_perf:
+        if perf_indicator > best_perf:
             best_perf = perf_indicator
             best_model = True
         else:

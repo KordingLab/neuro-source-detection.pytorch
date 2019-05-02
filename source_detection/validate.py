@@ -137,33 +137,38 @@ def main():
         use_target_weight=config.LOSS.USE_TARGET_WEIGHT
     ).cuda()
 
-    # Data loading code
-    normalize = transforms.Normalize(mean=[0.1440, 0.1440, 0.1440],
-                                     std=[19.0070, 19.0070, 19.0070])
+    n_sources = [1, 2, 4, 8, 16, 32, 64]
+    for ns in n_sources:
+        # Data loading code
+        normalize = transforms.Normalize(mean=[0.1440, 0.1440, 0.1440],
+                                         std=[19.0070, 19.0070, 19.0070])
 
-    valid_dataset = eval('dataset.'+config.DATASET.DATASET)(
-        config,
-        config.DATASET.ROOT,
-        config.DATASET.TEST_SET,
-        False,
-        transforms.Compose([
-            transforms.ToTensor(),
-            normalize,
-        ])
-    )
+        valid_dataset = eval('dataset.'+config.DATASET.DATASET)(
+            config,
+            config.DATASET.ROOT,
+            config.DATASET.TEST_SET,
+            False,
+            transforms.Compose([
+                transforms.ToTensor(),
+                normalize,
+            ]),
+            n_sources=ns
+        )
 
-    valid_loader = torch.utils.data.DataLoader(
-        valid_dataset,
-        batch_size=config.TEST.BATCH_SIZE*len(gpus),
-        shuffle=False,
-        num_workers=config.WORKERS,
-        pin_memory=True
-    )
+        valid_loader = torch.utils.data.DataLoader(
+            valid_dataset,
+            batch_size=config.TEST.BATCH_SIZE*len(gpus),
+            shuffle=False,
+            num_workers=config.WORKERS,
+            pin_memory=True
+        )
 
-    # evaluate on validation set
-    perf_indicator = validate(config, valid_loader, valid_dataset, model,
-                              criterion, final_output_dir, tb_log_dir,
-                              writer_dict)
+        # evaluate on validation set
+        perf_indicator = validate(config, valid_loader, valid_dataset, model,
+                                  criterion, final_output_dir, tb_log_dir,
+                                  writer_dict)
+
+    writer_dict['writer'].close()
 
 
 if __name__ == '__main__':

@@ -131,13 +131,45 @@ def get_mesh(x_mesh, y_mesh):
     mesh = np.array([Xsim,Ysim,np.zeros(d)]);
     return mesh
 
-def get_source(depth, n_sources, var_noise):
-
-    sources = np.random.rand(4, n_sources);
-    sources[3, :] = depth
-    sources[0, :] = 2*np.floor(2*sources[0, :])-1;
-    # image = evalpotential(mesh, sources);
-    # image = image.reshape((y_mesh, x_mesh)) + var_noise*np.random.randn(y_mesh, x_mesh)
+def get_source(n_sources=[40, 60],
+               p_n_sources=[.5, .5],
+               depth=[.1],
+               p_depth=[1],
+               amplitude=[-1,1],
+               p_amplitude=[.5,.5]):
+    """
+    Parameters:
+    -----------
+    n_sources: numpy array (int)
+    the number of sources in the plane
+    
+    p_n_sources: numpy array
+    The probabily distribution over the number of sources.
+    
+    depth: numpy array
+    the depth of sources
+    
+    p_depth: numpy array
+    The probabily distribution over the depth of sources.
+    
+    amplitude: numpy array
+    amplitude of sources.
+    
+    p_amplitude: numpy array
+    The probabily distribution over the amplitude of sources.
+    
+    Returns:
+    -------
+    sources: numpy array of shape (4, n)
+    the bio information of sources.
+    """
+    
+    number_of_sources = np.random.choice(a=n_sources, size=1, p=p_n_sources)[0]
+    sources = np.zeros(4, number_of_sources);
+    d = np.expand_dims(np.random.choice(a=depth, size=number_of_sources, p=p_depth),0)
+    loc = np.random.rand(2, number_of_sources)
+    amp = np.expand_dims(np.random.choice(a=amplitude, size=number_of_sources, p=p_amplitude),0)
+    sources = np.append(np.append(amp, loc, 0), d,0)
     return sources
 
 def generate_heatmaps(keypoints, im_height, im_width):

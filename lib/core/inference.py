@@ -59,7 +59,9 @@ def get_final_preds(batch_heatmaps, score_thresh=0.5):
 
         rows, cols = np.where(np.logical_and(local_max, heatmaps > score_thresh))
 
-        preds = np.vstack((cols, rows)).transpose()
+        scores = heatmaps[rows, cols]
+
+        preds = np.vstack((cols, rows, scores)).transpose()
 
         batch_preds.append(preds)
 

@@ -20,11 +20,9 @@ from lib.core.config import update_config
 from lib.core.config import update_dir
 from lib.core.config import get_model_name
 from lib.core.loss import JointsMSELoss
-from lib.core.function import train
-from lib.core.function import validate
-from lib.utils.utils import get_optimizer
-from lib.utils.utils import save_checkpoint
+from lib.core.function import test
 from lib.utils.utils import create_logger
+from collections import OrderedDict
 
 import lib.dataset as dataset
 import lib.models as models
@@ -71,7 +69,7 @@ def main():
     reset_config(config, args)
 
     logger, final_output_dir, tb_log_dir = create_logger(
-        config, args.cfg, 'train')
+        config, args.cfg, 'test')
 
     logger.info(pprint.pformat(args))
     logger.info(pprint.pformat(config))
@@ -82,23 +80,43 @@ def main():
     torch.backends.cudnn.enabled = config.CUDNN.ENABLED
 
     model = eval('models.'+config.MODEL.NAME+'.get_neuron_net')(
-        config, is_train=True
+        config, is_train=False
     )
 
-    # copy model file
-    this_dir = os.path.dirname(__file__)
-    shutil.copy2(
-        os.path.join(this_dir, '../lib/models', config.MODEL.NAME + '.py'),
-        final_output_dir)
+    if config.TEST.MODEL_FILE:
+        logger.info('=> loading model from {}'.format(config.TEST.MODEL_FILE))
+        checkpoint = torch.load(config.TEST.MODEL_FILE)
+        if isinstance(checkpoint, OrderedDict):
+            state_dict_old = checkpoint
+        elif isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
+            state_dict_old = checkpoint['state_dict']
+        else:
+            raise RuntimeError(
+                'No state_dict found in checkpoint file {}'.format(config.TEST.MODEL_FILE))
+
+        state_dict = OrderedDict()
+        # delete 'module.' because it is saved from DataParallel module
+        for key in state_dict_old.keys():
+            if key.startswith('module.'):
+                # state_dict[key[7:]] = state_dict[key]
+                # state_dict.pop(key)
+                state_dict[key[7:]] = state_dict_old[key]
+            else:
+                state_dict[key] = state_dict_old[key]
+
+        model.load_state_dict(state_dict)
+    else:
+        model_state_file = os.path.join(final_output_dir,
+                                        'final_state.pth.tar')
+        logger.info('=> loading model from {}'.format(model_state_file))
+        model.load_state_dict(torch.load(model_state_file))
 
     writer_dict = {
         'writer': SummaryWriter(log_dir=tb_log_dir),
-        'train_global_steps': 0,
-        'valid_global_steps': 0,
         'vis_global_steps': 0,
     }
 
-    dump_input = torch.rand((config.TRAIN.BATCH_SIZE,
+    dump_input = torch.rand((config.TEST.BATCH_SIZE,
                              3,
                              config.MODEL.IMAGE_SIZE[1],
                              config.MODEL.IMAGE_SIZE[0]))
@@ -107,31 +125,16 @@ def main():
     gpus = [int(i) for i in config.GPUS.split(',')]
     model = torch.nn.DataParallel(model, device_ids=gpus).cuda()
 
-    # define loss function (criterion) and optimizer
+    # define loss function (criterion)
     criterion = JointsMSELoss(
         use_target_weight=config.LOSS.USE_TARGET_WEIGHT
     ).cuda()
 
-    optimizer = get_optimizer(config, model)
-
-    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        optimizer, config.TRAIN.LR_STEP, config.TRAIN.LR_FACTOR
-    )
-
     # Data loading code
     normalize = transforms.Normalize(mean=[0.1440, 0.1440, 0.1440],
-                                     std=[19.0070, 19.0070, 19.0070])
-    train_dataset = eval('dataset.'+config.DATASET.DATASET)(
-        config,
-        config.DATASET.ROOT,
-        config.DATASET.TRAIN_SET,
-        True,
-        transforms.Compose([
-            transforms.ToTensor(),
-            normalize,
-        ])
-    )
-    valid_dataset = eval('dataset.'+config.DATASET.DATASET)(
+				     std=[19.0070, 19.0070, 19.0070])
+
+    test_dataset = eval('dataset.'+config.DATASET.DATASET)(
         config,
         config.DATASET.ROOT,
         config.DATASET.TEST_SET,
@@ -142,56 +145,18 @@ def main():
         ])
     )
 
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset,
-        batch_size=config.TRAIN.BATCH_SIZE*len(gpus),
-        shuffle=config.TRAIN.SHUFFLE,
-        num_workers=config.WORKERS,
-        pin_memory=True
-    )
-    valid_loader = torch.utils.data.DataLoader(
-        valid_dataset,
+    test_loader = torch.utils.data.DataLoader(
+        test_dataset,
         batch_size=config.TEST.BATCH_SIZE*len(gpus),
         shuffle=False,
         num_workers=config.WORKERS,
         pin_memory=True
     )
 
-    best_perf = 0.0
-    best_model = False
-    for epoch in range(config.TRAIN.BEGIN_EPOCH, config.TRAIN.END_EPOCH):
-        lr_scheduler.step()
+    # evaluate on validation set
+    perf_indicator = test(config, test_loader, model, final_output_dir,
+                          tb_log_dir, writer_dict)
 
-        # train for one epoch
-        train(config, train_loader, model, criterion, optimizer, epoch,
-              final_output_dir, tb_log_dir, writer_dict)
-
-
-        # evaluate on validation set
-        perf_indicator = validate(config, valid_loader, valid_dataset, model,
-                                  criterion, final_output_dir, tb_log_dir,
-                                  writer_dict)
-
-        if perf_indicator > best_perf:
-            best_perf = perf_indicator
-            best_model = True
-        else:
-            best_model = False
-
-        logger.info('=> saving checkpoint to {}'.format(final_output_dir))
-        save_checkpoint({
-            'epoch': epoch + 1,
-            'model': get_model_name(config),
-            'state_dict': model.state_dict(),
-            'perf': perf_indicator,
-            'optimizer': optimizer.state_dict(),
-        }, best_model, final_output_dir)
-
-    final_model_state_file = os.path.join(final_output_dir,
-                                          'final_state.pth.tar')
-    logger.info('saving final model state to {}'.format(
-        final_model_state_file))
-    torch.save(model.module.state_dict(), final_model_state_file)
     writer_dict['writer'].close()
 
 

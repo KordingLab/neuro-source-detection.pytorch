@@ -20,7 +20,7 @@ from lib.core.config import get_model_name
 from lib.core.evaluate import calc_tp_fp_fn
 from lib.core.inference import get_final_preds
 # from utils.transforms import flip_back
-# from utils.vis import save_debug_images
+from lib.utils.vis import vis_preds
 # from utils.vis_plain_keypoint import vis_mpii_keypoints
 # from utils.integral import softmax_integral_tensor
 
@@ -104,7 +104,7 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
             #                   prefix)
 
 
-def validate(config, val_loader, val_dataset, model, criterion, output_dir,
+def validate(config, val_loader, model, criterion, output_dir,
              tb_log_dir, writer_dict=None):
     batch_time = AverageMeter()
     losses = AverageMeter()
@@ -167,8 +167,16 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
                     heatmap_pred[heatmap_pred < 0.0] = 0
                     heatmap_pred[heatmap_pred > 1.0] = 1.0
 
-                    writer.add_image('input_recording', input_image, global_steps,
-                        dataformats='CHW')
+                    input_image = (input_image * 255).astype(np.uint8)
+                    input_image = np.transpose(input_image, (1, 2, 0))
+                    pred = preds[idx]
+                    gt = sources[idx][:valid_source_nums[idx], :]
+
+                    tp, _, _ = calc_tp_fp_fn(pred, gt)
+                    final_preds = vis_preds(input_image, pred, tp)
+
+                    writer.add_image('final_preds', final_preds, global_steps,
+                        dataformats='HWC')
                     writer.add_image('heatmap_target', heatmap_target, global_steps,
                         dataformats='CHW')
                     writer.add_image('heatmap_pred', heatmap_pred, global_steps,
@@ -182,8 +190,8 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
         total_tp = total_fp = total_fn = 0
         for preds, target in zip(all_preds, all_gts):
             tp, fp, fn = calc_tp_fp_fn(preds, target)
-            total_tp += tp
-            total_fp += fp
+            total_tp += np.sum(tp)
+            total_fp += np.sum(fp)
             total_fn += fn
 
         recall = total_tp / (total_tp + total_fn)
@@ -202,6 +210,68 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
             writer_dict['valid_global_steps'] = global_steps + 1
 
     return perf_indicator
+
+
+def test(config, test_loader, model, output_dir, tb_log_dir,
+         writer_dict=None):
+    batch_time = AverageMeter()
+
+    # switch to evaluate mode
+    model.eval()
+
+    all_preds = []
+
+    with torch.no_grad():
+        end = time.time()
+        for i, input in enumerate(test_loader):
+            # compute output
+            output = model(input)
+
+            num_images = input.size(0)
+
+            preds = get_final_preds(output.detach().cpu().numpy())
+            all_preds.extend(preds)
+
+            # measure elapsed time
+            batch_time.update(time.time() - end)
+            end = time.time()
+
+            if i % config.PRINT_FREQ == 0:
+                msg = 'Test: [{0}/{1}]\t' \
+                      'Time {batch_time.val:.3f} ({batch_time.avg:.3f})'.format(
+                          i, len(test_loader), batch_time=batch_time)
+                logger.info(msg)
+
+            if writer_dict:
+                writer = writer_dict['writer']
+                global_steps = writer_dict['vis_global_steps']
+
+                idx = np.random.randint(0, num_images)
+
+                input_image = input.detach().cpu().numpy()[idx]
+                min_val = input_image.min()
+                max_val = input_image.max()
+                input_image = (input_image - min_val) / (max_val - min_val)
+                heatmap_pred = output.detach().cpu().numpy()[idx]
+                heatmap_pred[heatmap_pred < 0.0] = 0
+                heatmap_pred[heatmap_pred > 1.0] = 1.0
+
+                input_image = (input_image * 255).astype(np.uint8)
+                input_image = np.transpose(input_image, (1, 2, 0))
+                pred = preds[idx]
+                tp = np.ones(pred.shape[0], dtype=bool)
+                final_preds = vis_preds(input_image, pred, tp)
+
+                writer.add_image('final_preds', final_preds, global_steps,
+                    dataformats='HWC')
+                writer.add_image('input_recording', input_image, global_steps,
+                    dataformats='HWC')
+                writer.add_image('heatmap_pred', heatmap_pred, global_steps,
+                    dataformats='CHW')
+
+                writer_dict['vis_global_steps'] = global_steps + 1
+
+                # prefix = '{}_{}'.format(os.path.join(output_dir, 'val'), i)
 
 
 # markdown format output

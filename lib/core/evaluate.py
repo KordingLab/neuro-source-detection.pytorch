@@ -16,7 +16,7 @@ from lib.core.inference import get_final_preds
 
 
 def calc_dists(preds, target):
-    preds = preds.astype(np.float32)
+    preds = preds.astype(np.float32)[:, :2]
     target = target.astype(np.float32)
 
     dists = np.sqrt(((preds.reshape(preds.shape[0], 1, preds.shape[1]) - \
@@ -32,8 +32,8 @@ def calc_tp_fp_fn(preds, target, hit_thr=2):
 
     row_ind, col_ind = linear_sum_assignment(dists)
 
-    tp = np.sum(dists[row_ind, col_ind] <= hit_thr)
-    fp = dists.shape[0] - tp
-    fn = dists.shape[1] - tp
+    tp = dists[row_ind, col_ind] <= hit_thr
+    fp = np.logical_not(tp)
+    fn = dists.shape[1] - np.sum(tp)
 
     return tp, fp, fn

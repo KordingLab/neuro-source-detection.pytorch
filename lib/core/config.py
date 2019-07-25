@@ -76,6 +76,11 @@ config.DATASET.TRAIN_SET = 'train'
 config.DATASET.TEST_SET = 'valid'
 config.DATASET.DATA_FORMAT = 'jpg'
 
+config.DATASET.X_MIN = 250
+config.DATASET.Y_MIN = 50
+config.DATASET.X_MAX = 378
+config.DATASET.Y_MAX = 178
+
 # training data augmentation
 config.DATASET.FLIP = True
 config.DATASET.SCALE_FACTOR = 0.25

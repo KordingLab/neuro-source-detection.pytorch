@@ -9,3 +9,4 @@ from __future__ import division
 from __future__ import print_function
 
 from lib.dataset.SimulatedDataset import SimulatedDataset as simulation
+from lib.dataset.RealDataset import RealDataset as real_dataset

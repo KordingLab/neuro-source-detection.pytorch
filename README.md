@@ -38,3 +38,14 @@ To test with simulated data after training, run:
 CUDA_VISIBLE_DEVICES=$GPU_ID python source_detection/validate.py --cfg experiments/simulated/128x128_d256x3_adam_lr1e-3.yaml
 ```
 Tensorboard logs will be saved into `log` folder.
+
+### Testing with real data
+Your need to put the real data (e.g. srep31332-s1.mat) into ./data/real_dataset/ folder first. To test with real data after training, run:
+```
+CUDA_VISIBLE_DEVICES=$GPU_ID python source_detection/test.py --cfg experiments/real_data/128x128_d256x3_adam_lr1e-3.yaml
+```
+Tensorboard logs will be saved into `log` folder. Modify TEST_SET entry (for different input file names) or X_MIN, Y_MIN, X_MAX, Y_MAX entries (for different region in the video) in the .yaml file if you need to.
+To see Tensorboard logs with images from all time-steps, run:
+```
+tensorboard --logdir=$YOUR_LOG_DIR --samples_per_plugin images=0
+```

@@ -22,10 +22,10 @@ See [`requirements.txt`](requirements.txt) for other dependencies.
    ```
    pip install -r requirements.txt
    ```
-4. Download pretrained neuron-detection model [model](https://drive.google.com/file/d/1iX1oE3bhKzuAHLi0MsPXeNzoqRm4nfZe/view?usp=sharing), and put it under `${ROOT}/models/neuron/`
+4. Download pretrained neuron-detection [model](https://drive.google.com/file/d/1iX1oE3bhKzuAHLi0MsPXeNzoqRm4nfZe/view?usp=sharing), and put it under `${ROOT}/models/neuron/`
 
 ### Training with simulated data (optional)
-1. Download ResNet-18 model pretrained on ImageNet [model](https://download.pytorch.org/models/resnet18-5c106cde.pth) 
+1. Download model ImageNet-pretrained ResNet-18 [model](https://download.pytorch.org/models/resnet18-5c106cde.pth) 
 and put it under `${ROOT}/models/pytorch/imagenet/`
 2. To train with simulated data, run:
 ```

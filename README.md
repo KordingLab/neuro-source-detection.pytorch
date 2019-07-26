@@ -22,11 +22,12 @@ See [`requirements.txt`](requirements.txt) for other dependencies.
    ```
    pip install -r requirements.txt
    ```
-4. Download pretrained ResNet-18 [model](https://download.pytorch.org/models/resnet18-5c106cde.pth) 
-and put it under `${ROOT}/models/pytorch/imagenet/`
+4. Download pretrained neuron-detection model [model](https://drive.google.com/file/d/1iX1oE3bhKzuAHLi0MsPXeNzoqRm4nfZe/view?usp=sharing), and put it under `${ROOT}/models/neuron/`
 
-### Training with simulated data
-To train with simulated data, run:
+### Training with simulated data (optional)
+1. Download ResNet-18 model pretrained on ImageNet [model](https://download.pytorch.org/models/resnet18-5c106cde.pth) 
+and put it under `${ROOT}/models/pytorch/imagenet/`
+2. To train with simulated data, run:
 ```
 CUDA_VISIBLE_DEVICES=$GPU_ID python source_detection/train.py --cfg experiments/simulated/128x128_d256x3_adam_lr1e-3.yaml
 ```
@@ -40,7 +41,7 @@ CUDA_VISIBLE_DEVICES=$GPU_ID python source_detection/validate.py --cfg experimen
 Tensorboard logs will be saved into `log` folder.
 
 ### Testing with real data
-Your need to put the real data (e.g. srep31332-s1.mat) into ./data/real_dataset/ folder first. To test with real data after training, run:
+You need to put the real data (e.g. srep31332-s1.mat) into ./data/real_dataset/ folder first. To test with real data after training, run:
 ```
 CUDA_VISIBLE_DEVICES=$GPU_ID python source_detection/test.py --cfg experiments/real_data/128x128_d256x3_adam_lr1e-3.yaml
 ```
